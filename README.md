@@ -32,13 +32,14 @@ The workflow clones `mattpocock/skills` at the requested ref, regenerates `.agen
 
 - `.agents/skills/` is the product of this repo: the flattened, generated mirror that Devin reads. **Never edit it by hand**; the next sync would overwrite any manual change. It is regenerated wholesale from upstream on every sync.
 - [`.agents/UPSTREAM_VERSION`](.agents/UPSTREAM_VERSION) records which upstream version the mirror was last generated from (the requested ref, the tag pointing at it if any, and the commit SHA). The workflow rewrites it on every sync; the same version also lands in the sync commit message and the run's step summary.
-- [`scripts/sync-agents-skills.sh`](scripts/sync-agents-skills.sh) produces the mirror. With no argument it reads this repo's own `skills/` tree; the workflow passes it a fresh upstream clone instead.
-- [`.github/workflows/sync-skills.yml`](.github/workflows/sync-skills.yml) is the manual sync described above.
-- Everything else (`skills/`, `docs/`, `AGENTS.md`, and so on) is a snapshot of upstream from the last git-level sync. It is kept for reference and for running the script locally, but it may lag behind upstream; `.agents/skills/` is the only part the sync keeps current.
+- [`scripts/sync-agents-skills.sh`](scripts/sync-agents-skills.sh) produces the mirror from a clone of upstream, which the workflow passes to it. It is the only script in the repo.
+- [`.github/workflows/sync-skills.yml`](.github/workflows/sync-skills.yml) is the manual sync described above, and the repo's only workflow.
+
+That is the whole repo, on purpose: upstream's own files (`skills/`, `docs/`, package tooling, release automation) are not carried here, because this repo consumes upstream as a data source rather than tracking its git history.
 
 ## Making changes to skills
 
-Do not customize skills here: the mirror is regenerated from upstream on every sync, so local edits to `.agents/skills/` are lost and edits to `skills/` never reach the mirror once the workflow is the sync path. Propose improvements upstream at [mattpocock/skills](https://github.com/mattpocock/skills). If Studytube ever needs skills of its own, put them in a separate repo (or a separate, non-mirrored directory wired into the sync script) rather than editing the mirrored files.
+Do not customize skills here: the mirror is regenerated from upstream on every sync, so local edits to `.agents/skills/` are lost. Propose improvements upstream at [mattpocock/skills](https://github.com/mattpocock/skills). If Studytube ever needs skills of its own, put them in a separate repo (or a separate, non-mirrored directory wired into the sync script) rather than editing the mirrored files.
 
 ## Attribution
 

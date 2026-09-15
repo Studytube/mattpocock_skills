@@ -1,27 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Mirrors the promoted skills (skills/engineering and skills/productivity) into
-# .agents/skills/<skill-name>/ so harnesses that only scan the fixed
+# Regenerates .agents/skills/ from a checkout of mattpocock/skills: the
+# promoted buckets (skills/engineering and skills/productivity) are flattened
+# into .agents/skills/<skill-name>/ so harnesses that only scan the fixed
 # .agents/skills root, one level deep, discover them. Devin Cloud is one of
 # those: it indexes SKILL.md files from a repo's committed contents, so the
 # mirror has to be real files rather than symlinks.
 #
-# The mirror is generated. Edit skills/ and re-run this script after adding,
-# removing, or renaming a skill, or after syncing with upstream.
-#
-# Usage: sync-agents-skills.sh [source-checkout]
-# With no argument the skills are read from this repo's own skills/ directory.
-# Pass a path to another checkout (for example a clone of mattpocock/skills at
-# a given tag) to regenerate the mirror from that source instead; this is what
-# .github/workflows/sync-skills.yml does.
+# Usage: sync-agents-skills.sh <source-checkout>
+# where <source-checkout> is a clone of https://github.com/mattpocock/skills
+# at the version to mirror. This is what .github/workflows/sync-skills.yml
+# runs; there is normally no reason to run it by hand.
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
-SRC="${1:-$REPO}"
+if [ $# -lt 1 ]; then
+  echo "usage: $0 <source-checkout>  (a clone of mattpocock/skills)" >&2
+  exit 1
+fi
+SRC="$1"
 if [ ! -d "$SRC/skills" ]; then
   echo "error: '$SRC' has no skills/ directory." >&2
   exit 1
 fi
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$REPO/.agents/skills"
 BUCKETS=("engineering" "productivity")
 
@@ -44,17 +46,20 @@ done
 cat > "$DEST/README.md" <<'EOF'
 # .agents/skills
 
-Generated mirror of the promoted skills in [`skills/`](../../skills), produced by
-[`scripts/sync-agents-skills.sh`](../../scripts/sync-agents-skills.sh).
+Generated mirror of the promoted skills in
+[mattpocock/skills](https://github.com/mattpocock/skills), produced by
+[`scripts/sync-agents-skills.sh`](../../scripts/sync-agents-skills.sh) via the
+`Sync skills from upstream` workflow.
 
-`skills/` groups skills into bucket folders (`engineering/`, `productivity/`),
+Upstream groups skills into bucket folders (`engineering/`, `productivity/`),
 which puts every `SKILL.md` one level deeper than harnesses that scan
 `.agents/skills/<skill-name>/SKILL.md` expect. This directory flattens them so
 those harnesses, Devin Cloud among them, discover the skills straight from the
 repository.
 
-Do not edit anything here. Change the skill under `skills/` and re-run the sync
-script.
+Do not edit anything here: the next sync overwrites it. Propose skill changes
+upstream instead. `../UPSTREAM_VERSION` records the upstream version this
+mirror was generated from.
 EOF
 
 echo "wrote $DEST/README.md"
