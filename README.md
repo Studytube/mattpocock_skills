@@ -31,6 +31,7 @@ The workflow clones `mattpocock/skills` at the requested ref, regenerates `.agen
 ## Repository layout
 
 - `.agents/skills/` is the product of this repo: the flattened, generated mirror that Devin reads. **Never edit it by hand**; the next sync would overwrite any manual change. It is regenerated wholesale from upstream on every sync.
+- [`.agents/UPSTREAM_VERSION`](.agents/UPSTREAM_VERSION) records which upstream version the mirror was last generated from (the requested ref, the tag pointing at it if any, and the commit SHA). The workflow rewrites it on every sync; the same version also lands in the sync commit message and the run's step summary.
 - [`scripts/sync-agents-skills.sh`](scripts/sync-agents-skills.sh) produces the mirror. With no argument it reads this repo's own `skills/` tree; the workflow passes it a fresh upstream clone instead.
 - [`.github/workflows/sync-skills.yml`](.github/workflows/sync-skills.yml) is the manual sync described above.
 - Everything else (`skills/`, `docs/`, `AGENTS.md`, and so on) is a snapshot of upstream from the last git-level sync. It is kept for reference and for running the script locally, but it may lag behind upstream; `.agents/skills/` is the only part the sync keeps current.

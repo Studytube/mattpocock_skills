@@ -20,25 +20,46 @@ jobs:
     env:
       UPSTREAM_REF: ${{ inputs.ref || 'main' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Clone upstream at the requested ref
         run: |
           git clone --depth 1 --branch "$UPSTREAM_REF" \
             https://github.com/mattpocock/skills.git "$RUNNER_TEMP/upstream"
           echo "UPSTREAM_SHA=$(git -C "$RUNNER_TEMP/upstream" rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          # Resolve the tag pointing at the synced commit, if any, so the
+          # version is recorded even when the input was a branch name.
+          git -C "$RUNNER_TEMP/upstream" fetch --tags --depth 1 origin >/dev/null 2>&1 || true
+          echo "UPSTREAM_TAG=$(git -C "$RUNNER_TEMP/upstream" tag --points-at HEAD | tail -n 1)" >> "$GITHUB_ENV"
 
       - name: Regenerate the .agents/skills mirror
         run: ./scripts/sync-agents-skills.sh "$RUNNER_TEMP/upstream"
+
+      - name: Record the synced upstream version
+        run: |
+          printf 'ref: %s\ntag: %s\ncommit: %s\n' \
+            "$UPSTREAM_REF" "${UPSTREAM_TAG:-none}" "$UPSTREAM_SHA" > .agents/UPSTREAM_VERSION
 
       - name: Commit and push if the mirror changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .agents/skills
+          git add .agents
+          added=$(git diff --cached --name-status | grep -c '^A' || true)
+          updated=$(git diff --cached --name-status | grep -c '^M' || true)
+          removed=$(git diff --cached --name-status | grep -c '^D' || true)
+          version="${UPSTREAM_TAG:-$UPSTREAM_REF}"
+          {
+            echo "## Skills sync"
+            echo ""
+            echo "- Source: \`mattpocock/skills@$version\` (commit \`$UPSTREAM_SHA\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
           if git diff --cached --quiet; then
-            echo "Mirror already matches mattpocock/skills@$UPSTREAM_REF ($UPSTREAM_SHA); nothing to commit."
+            echo "- Mirror already up to date; nothing committed." >> "$GITHUB_STEP_SUMMARY"
+            echo "Mirror already matches mattpocock/skills@$version ($UPSTREAM_SHA); nothing to commit."
           else
-            git commit -m "Sync .agents/skills from mattpocock/skills@$UPSTREAM_REF ($UPSTREAM_SHA)"
+            echo "- Files: $added added, $updated updated, $removed removed" >> "$GITHUB_STEP_SUMMARY"
+            git commit -m "Sync .agents/skills from mattpocock/skills@$version ($UPSTREAM_SHA)"
             git push
+            echo "Synced mattpocock/skills@$version ($UPSTREAM_SHA): $added added, $updated updated, $removed removed."
           fi
