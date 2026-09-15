@@ -1,0 +1,44 @@
+name: Sync skills from upstream
+
+# Manual-only sync of the .agents/skills mirror from mattpocock/skills.
+# Run it from the Actions tab; pass a tag (for example v1.2.3) to sync a
+# pinned release, or leave the input empty to sync the tip of main.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Upstream tag or branch of mattpocock/skills to sync"
+        required: false
+        default: main
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM_REF: ${{ inputs.ref || 'main' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone upstream at the requested ref
+        run: |
+          git clone --depth 1 --branch "$UPSTREAM_REF" \
+            https://github.com/mattpocock/skills.git "$RUNNER_TEMP/upstream"
+          echo "UPSTREAM_SHA=$(git -C "$RUNNER_TEMP/upstream" rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Regenerate the .agents/skills mirror
+        run: ./scripts/sync-agents-skills.sh "$RUNNER_TEMP/upstream"
+
+      - name: Commit and push if the mirror changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .agents/skills
+          if git diff --cached --quiet; then
+            echo "Mirror already matches mattpocock/skills@$UPSTREAM_REF ($UPSTREAM_SHA); nothing to commit."
+          else
+            git commit -m "Sync .agents/skills from mattpocock/skills@$UPSTREAM_REF ($UPSTREAM_SHA)"
+            git push
+          fi

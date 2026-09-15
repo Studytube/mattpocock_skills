@@ -9,8 +9,19 @@ set -euo pipefail
 #
 # The mirror is generated. Edit skills/ and re-run this script after adding,
 # removing, or renaming a skill, or after syncing with upstream.
+#
+# Usage: sync-agents-skills.sh [source-checkout]
+# With no argument the skills are read from this repo's own skills/ directory.
+# Pass a path to another checkout (for example a clone of mattpocock/skills at
+# a given tag) to regenerate the mirror from that source instead; this is what
+# .github/workflows/sync-skills.yml does.
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="${1:-$REPO}"
+if [ ! -d "$SRC/skills" ]; then
+  echo "error: '$SRC' has no skills/ directory." >&2
+  exit 1
+fi
 DEST="$REPO/.agents/skills"
 BUCKETS=("engineering" "productivity")
 
@@ -27,7 +38,7 @@ for bucket in "${BUCKETS[@]}"; do
     fi
     cp -R "$src" "$DEST/$name"
     echo "mirrored $bucket/$name"
-  done < <(find "$REPO/skills/$bucket" -name SKILL.md -not -path '*/node_modules/*' -print0 | sort -z)
+  done < <(find "$SRC/skills/$bucket" -name SKILL.md -not -path '*/node_modules/*' -print0 | sort -z)
 done
 
 cat > "$DEST/README.md" <<'EOF'
